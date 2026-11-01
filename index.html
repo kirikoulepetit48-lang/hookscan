@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>HookScan IA : analyse le début de ta vidéo TikTok</title>
+<style>
+  :root {
+    --paper: #F6F6F1;
+    --ink: #15171C;
+    --ink-soft: #4A4E57;
+    --coral: #FF6A55;
+    --coral-deep: #D8402C;
+    --mint: #7EE0BC;
+    --mint-deep: #0B7A58;
+    --line: #D9DAD2;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 17px;
+    line-height: 1.5;
+  }
+  main { max-width: 560px; margin: 0 auto; padding: 20px 18px 48px; }
+  .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.01em; }
+  .brand span { background: var(--coral); padding: 1px 7px; border-radius: 4px; margin-left: 4px; }
+
+  h1 {
+    font-size: clamp(30px, 9vw, 42px);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    font-weight: 800;
+    margin: 22px 0 10px;
+  }
+  .lead { color: var(--ink-soft); margin: 0 0 22px; max-width: 46ch; }
+
+  /* Pellicule : l'élément central de la page */
+  .strip {
+    list-style: none;
+    margin: 0 0 6px;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    position: relative;
+  }
+  .strip li { position: relative; }
+  .frame {
+    aspect-ratio: 9 / 16;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--ink);
+    position: relative;
+  }
+  .frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .strip li:nth-child(1) .frame.empty { background: var(--coral); }
+  .strip li:nth-child(2) .frame.empty { background: var(--ink); }
+  .strip li:nth-child(3) .frame.empty { background: var(--mint); }
+  .strip li:nth-child(4) .frame.empty { background: #E8E8E0; }
+  .tc { display: block; margin-top: 6px; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .strip-note { font-size: 14px; color: var(--ink-soft); margin: 4px 0 26px; }
+
+  .strip.scan::after {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 26px; left: 0;
+    width: 3px;
+    background: var(--coral-deep);
+    animation: scan 1.8s ease-in-out infinite alternate;
+  }
+  @keyframes scan { to { left: calc(100% - 3px); } }
+
+  label.field { display: block; font-weight: 700; margin: 0 0 6px; }
+  .hint { font-size: 14px; color: var(--ink-soft); margin: 0 0 8px; }
+
+  .pick {
+    display: flex; align-items: center; gap: 12px;
+    border: 2px dashed var(--ink);
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    font-weight: 700;
+    margin-bottom: 22px;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+  }
+  .pick small { display: block; font-weight: 400; color: var(--ink-soft); font-size: 14px; word-break: break-all; }
+  input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+  textarea {
+    width: 100%;
+    min-height: 88px;
+    resize: vertical;
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    padding: 12px;
+    font: inherit;
+    background: #fff;
+    color: var(--ink);
+  }
+  .count { text-align: right; font-size: 13px; color: var(--ink-soft); margin: 4px 0 18px; }
+
+  button.primary, button.secondary {
+    font: inherit; font-weight: 800;
+    border-radius: 10px;
+    padding: 15px 18px;
+    cursor: pointer;
+    width: 100%;
+    border: 2px solid var(--ink);
+    color: var(--ink);
+  }
+  button.primary { background: var(--coral); }
+  button.secondary { background: transparent; margin-top: 10px; }
+  button:disabled { opacity: .6; cursor: progress; }
+  :focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+
+  .privacy { font-size: 14px; color: var(--ink-soft); margin: 14px 0 0; }
+
+  .alert {
+    border-left: 5px solid var(--coral-deep);
+    background: #FFE9E5;
+    padding: 12px 14px;
+    margin: 0 0 16px;
+    border-radius: 0 8px 8px 0;
+    font-weight: 600;
+  }
+
+  /* Résultat */
+  #result h2 { font-size: 20px; margin: 30px 0 8px; letter-spacing: -0.01em; }
+  .verdict {
+    font-family: Georgia, "Noto Serif", serif;
+    font-size: 21px;
+    line-height: 1.45;
+    margin: 0;
+    padding-left: 14px;
+    border-left: 5px solid var(--mint);
+  }
+  #result ul, #result ol { padding-left: 20px; margin: 0; }
+  #result li { margin-bottom: 8px; }
+  .sugg { list-style: none; padding: 0 !important; }
+  .sugg li { padding: 12px 0; border-top: 1px solid var(--line); margin: 0; }
+  .sugg li:last-child { border-bottom: 1px solid var(--line); }
+  .tag {
+    display: inline-block;
+    font-size: 13px; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px;
+    margin-top: 6px;
+  }
+  .tag.sujet { background: var(--mint); color: var(--ink); }
+  .tag.images { background: var(--ink); color: var(--paper); }
+  .tag.impossible_a_verifier { background: transparent; border: 1.5px solid var(--ink-soft); color: var(--ink-soft); }
+  .limits { font-size: 14px; color: var(--ink-soft); }
+  .left { font-size: 14px; color: var(--mint-deep); font-weight: 700; margin-top: 18px; }
+
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) {
+    .strip.scan::after { animation: none; width: 100%; opacity: .15; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">HookScan<span>IA</span></div>
+
+  <h1>Les premières secondes comptent.</h1>
+  <p class="lead">Envoie ta vidéo. Je regarde ton début et je te dis ce qui bloque, avec des corrections concrètes.</p>
+
+  <ol class="strip" id="strip" aria-label="Images extraites de ta vidéo"></ol>
+  <p class="strip-note" id="stripNote"></p>
+
+  <section id="form">
+    <div id="error" class="alert" role="alert" hidden></div>
+
+    <input type="file" id="video" accept="video/*">
+    <button type="button" class="pick" id="pick">
+      <span aria-hidden="true">🎬</span>
+      <span>Choisir une vidéo<small id="fileName">Aucune vidéo choisie</small></span>
+    </button>
+
+    <label class="field" for="topic">De quoi parle ta vidéo ?</label>
+    <p class="hint">Une phrase suffit. Je ne peux pas écouter ta vidéo : le sujet vient de toi.</p>
+    <textarea id="topic" maxlength="200" placeholder="Ex. : 3 erreurs qui font perdre des abonnés aux nouveaux créateurs"></textarea>
+    <div class="count"><span id="count">0</span>/200</div>
+
+    <button type="button" class="primary" id="go">Analyser mon hook</button>
+    <p class="privacy">La vidéo complète reste sur ton téléphone. Jusqu'à 3 images extraites sont envoyées au serveur pour analyse par l'IA. Durée : environ 10 à 20 secondes. Pas de score, pas de promesse de vues.</p>
+  </section>
+
+  <section id="result" hidden>
+    <h2>Diagnostic du hook</h2>
+    <p class="verdict" id="diag"></p>
+
+    <h2>Défauts visibles</h2>
+    <ul id="defects"></ul>
+
+    <h2>Suggestions</h2>
+    <ol class="sugg" id="suggs"></ol>
+
+    <p class="limits" id="limits"></p>
+    <p class="left" id="left"></p>
+
+    <button type="button" class="secondary" id="copy">Copier le résultat</button>
+    <button type="button" class="primary" id="again" style="margin-top:10px">Analyser une autre vidéo</button>
+  </section>
+</main>
+
+<script>
+// À REMPLACER par l'adresse de ton Worker Cloudflare (voir LISEZ-MOI.txt)
+const WORKER_URL = "https://hookscan.manraphael19.workers.dev";
+
+const $ = (id) => document.getElementById(id);
+const BASE_TIMES = [0.1, 1.5, 3];
+const MAX_FRAME_CHARS = 380000; // le Worker refuse au-delà de 400 000
+const SOURCE_LABEL = {
+  sujet: "d'après ton sujet",
+  images: "d'après les images",
+  impossible_a_verifier: "impossible à vérifier"
+};
+let lastText = "";
+
+/* ---------- Pellicule ---------- */
+const NOTE_DEFAULT = "Jusqu'à 3 images seront extraites de ta vidéo à 0,1 s, 1,5 s et 3 s. La première est prise à 0,1 s car l'image exacte à 0 s peut être vide sur certains téléphones.";
+const fmtTime = (t) => String(Math.round(t * 10) / 10).replace(".", ",") + " s";
+
+function renderPlaceholders() {
+  const strip = $("strip");
+  strip.innerHTML = "";
+  BASE_TIMES.map(fmtTime).forEach((t) => {
+    const li = document.createElement("li");
+    const f = document.createElement("div");
+    f.className = "frame empty";
+    const tc = document.createElement("span");
+    tc.className = "tc";
+    tc.textContent = t;
+    li.append(f, tc);
+    strip.append(li);
+  });
+}
+function renderFrames(frames) {
+  const strip = $("strip");
+  strip.innerHTML = "";
+  frames.forEach((fr) => {
+    const li = document.createElement("li");
+    const f = document.createElement("div");
+    f.className = "frame";
+    const img = document.createElement("img");
+    img.alt = "Image de ta vidéo à " + fmtTime(fr.t);
+    img.src = fr.data;
+    f.append(img);
+    const tc = document.createElement("span");
+    tc.className = "tc";
+    tc.textContent = fmtTime(fr.t);
+    li.append(f, tc);
+    strip.append(li);
+  });
+  strip.style.gridTemplateColumns = "repeat(" + Math.max(frames.length, 1) + ", 1fr)";
+  $("stripNote").textContent = "Voici les " + frames.length + " images analysées.";
+}
+
+/* ---------- Extraction des images ---------- */
+function releaseVideo(v, url) {
+  v.onloadedmetadata = null;
+  v.onerror = null;
+  v.onseeked = null;
+  v.pause();
+  v.removeAttribute("src");
+  v.load();
+  URL.revokeObjectURL(url);
+}
+function loadVideo(file) {
+  return new Promise((resolve, reject) => {
+    const v = document.createElement("video");
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = "auto";
+    const url = URL.createObjectURL(file);
+    const fail = () => { clearTimeout(timer); releaseVideo(v, url); reject(new Error("video_illisible")); };
+    const timer = setTimeout(fail, 20000);
+    v.onloadedmetadata = () => { clearTimeout(timer); resolve({ v, url }); };
+    v.onerror = fail;
+    v.src = url;
+  });
+}
+function seekTo(v, t) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("video_illisible")), 10000);
+    v.onseeked = () => { clearTimeout(timer); resolve(); };
+    v.currentTime = t;
+  });
+}
+async function extractFrames(file) {
+  const { v, url } = await loadVideo(file);
+  try {
+    const d = v.duration;
+    if (!isFinite(d) || d <= 0 || !v.videoWidth) throw new Error("video_illisible");
+    if (d < 0.5) throw new Error("video_trop_courte");
+
+    const times = [...new Set(
+      BASE_TIMES.map((t) => Math.min(t, Math.max(d - 0.1, 0.1)).toFixed(1))
+    )].map(Number);
+
+    const baseScale = Math.min(1, 640 / Math.max(v.videoWidth, v.videoHeight));
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // Essaie 3 niveaux de qualité, puis réduit la taille de l'image et recommence.
+    // Retourne null si l'image reste trop lourde : on ne l'envoie jamais au Worker.
+    const encode = () => {
+      for (const shrink of [1, 0.75, 0.5]) {
+        const w = Math.max(1, Math.round(v.videoWidth * baseScale * shrink));
+        const h = Math.max(1, Math.round(v.videoHeight * baseScale * shrink));
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(v, 0, 0, w, h);
+        for (const q of [0.72, 0.55, 0.4]) {
+          const data = canvas.toDataURL("image/jpeg", q);
+          if (data.startsWith("data:image/jpeg") && data.length < MAX_FRAME_CHARS) return data;
+        }
+      }
+      return null;
+    };
+
+    const frames = [];
+    for (const t of times) {
+      await seekTo(v, t);
+      const data = encode();
+      if (!data) throw new Error("image_trop_lourde");
+      frames.push({ t, data });
+    }
+    return frames;
+  } finally {
+    releaseVideo(v, url);
+  }
+}
+
+/* ---------- Interface ---------- */
+function showError(msg) {
+  const e = $("error");
+  e.textContent = msg;
+  e.hidden = false;
+  e.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function clearError() { $("error").hidden = true; }
+function setBusy(on, label) {
+  $("go").disabled = on;
+  $("go").textContent = on ? label : "Analyser mon hook";
+  $("strip").classList.toggle("scan", on);
+}
+function errorMessage(e) {
+  const m = e && e.message;
+  if (e && e.name === "AbortError") return "L'analyse a pris trop de temps. Réessaie avec une vidéo plus courte ou dans un moment.";
+  if (m === "video_illisible") return "Ce format de vidéo ne peut pas être lu sur ce téléphone. Essaie une vidéo enregistrée en MP4.";
+  if (m === "image_trop_lourde") return "Une image de ta vidéo reste trop lourde pour être envoyée, même réduite. Essaie une autre vidéo ou une version moins détaillée.";
+  if (m === "video_trop_courte") return "La vidéo est trop courte : il faut au moins une demi-seconde.";
+  if (m === "quota_ip") return "Tu as atteint ta limite d'analyses pour aujourd'hui. Reviens demain.";
+  if (m === "quota_global") return "Le service est complet pour aujourd'hui. Reviens demain.";
+  if (m === "ia_occupee") return "L'analyse est très demandée en ce moment. Réessaie dans une minute.";
+  if (m === "ia_indisponible") return "L'analyse a échoué côté service. Réessaie dans quelques minutes.";
+  if (m === "reponse_invalide") return "La réponse reçue est incomplète. Relance l'analyse.";
+  if (m === "configuration") return "Le service est en cours de réglage. Réessaie plus tard.";
+  if (m === "trop_gros") return "Les images sont trop lourdes pour être envoyées. Essaie une vidéo avec une résolution plus basse.";
+  if (m === "requete_invalide") return "La demande n'est pas valide. Vérifie ta vidéo et ta phrase de sujet, puis réessaie.";
+  if (m === "origine") return "Ce site n'est pas autorisé à utiliser le service.";
+  if (e instanceof TypeError) return "Pas de connexion au service. Vérifie ton réseau et réessaie.";
+  return "Une erreur est survenue. Réessaie.";
+}
+
+function showResult(data) {
+  const r = data.result;
+  $("diag").textContent = r.diagnostic;
+
+  const dl = $("defects");
+  dl.innerHTML = "";
+  if (r.defauts.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "Aucun défaut visible repéré sur ces images.";
+    dl.append(li);
+  } else {
+    r.defauts.forEach((d) => {
+      const li = document.createElement("li");
+      li.textContent = d.moment + " : " + d.texte;
+      dl.append(li);
+    });
+  }
+
+  const sl = $("suggs");
+  sl.innerHTML = "";
+  if (r.suggestions.length === 0) {
+    const li = document.createElement("li");
+    li.textContent = "Pas assez d'informations pour proposer des améliorations fiables.";
+    sl.append(li);
+  } else {
+    r.suggestions.forEach((s) => {
+      const li = document.createElement("li");
+      const p = document.createElement("div");
+      p.textContent = s.texte;
+      const tag = document.createElement("span");
+      tag.className = "tag " + s.source;
+      tag.textContent = SOURCE_LABEL[s.source];
+      li.append(p, tag);
+      sl.append(li);
+    });
+  }
+
+  $("limits").textContent = r.limites || "";
+  $("left").textContent = typeof data.remaining === "number"
+    ? "Analyses restantes aujourd'hui : " + data.remaining : "";
+
+  lastText = [
+    "HookScan IA - Diagnostic du hook",
+    r.diagnostic,
+    "",
+    "Défauts visibles :",
+    ...(r.defauts.length ? r.defauts.map((d) => "- " + d.moment + " : " + d.texte) : ["- aucun repéré"]),
+    "",
+    "Suggestions :",
+    ...(r.suggestions.length
+      ? r.suggestions.map((s, i) => (i + 1) + ". " + s.texte + " (" + SOURCE_LABEL[s.source] + ")")
+      : ["- pas assez d'informations pour proposer des améliorations fiables"]),
+    "",
+    r.limites || ""
+  ].join("\n");
+
+  $("form").hidden = true;
+  $("result").hidden = false;
+  $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function analyse() {
+  clearError();
+  const file = $("video").files[0];
+  const topic = $("topic").value.trim();
+  if (!file) return showError("Choisis d'abord une vidéo.");
+  if (topic.length < 5) return showError("Écris en une phrase de quoi parle ta vidéo (5 caractères minimum).");
+  if (WORKER_URL.includes("REMPLACE")) return showError("Le service n'est pas encore configuré.");
+
+  let frames;
+  setBusy(true, "Extraction des images…");
+  try {
+    frames = await extractFrames(file);
+  } catch (e) {
+    setBusy(false);
+    return showError(errorMessage(e));
+  }
+  renderFrames(frames);
+
+  setBusy(true, "Analyse en cours…");
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 60000);
+  try {
+    const r = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic, frames: frames.map((f) => f.data), times: frames.map((f) => f.t) }),
+      signal: ctrl.signal
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || (r.status === 413 ? "trop_gros" : "erreur"));
+    // La pellicule affichée doit montrer exactement les images transmises à l'IA
+    const n = Number(data.images_analysees);
+    if (n >= 1 && n < frames.length) {
+      frames = frames.slice(0, n);
+      renderFrames(frames);
+    }
+    showResult(data);
+  } catch (e) {
+    showError(errorMessage(e));
+  } finally {
+    clearTimeout(timer);
+    setBusy(false);
+  }
+}
+
+async function copyResult() {
+  try {
+    await navigator.clipboard.writeText(lastText);
+  } catch (_) {
+    const ta = document.createElement("textarea");
+    ta.value = lastText;
+    document.body.append(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  }
+  $("copy").textContent = "Copié";
+  setTimeout(() => { $("copy").textContent = "Copier le résultat"; }, 1800);
+}
+
+function reset() {
+  $("result").hidden = true;
+  $("form").hidden = false;
+  $("video").value = "";
+  $("fileName").textContent = "Aucune vidéo choisie";
+  $("topic").value = "";
+  $("count").textContent = "0";
+  $("stripNote").textContent = NOTE_DEFAULT;
+  $("strip").style.gridTemplateColumns = "";
+  renderPlaceholders();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+$("pick").addEventListener("click", () => $("video").click());
+$("video").addEventListener("change", () => {
+  const f = $("video").files[0];
+  $("fileName").textContent = f ? f.name : "Aucune vidéo choisie";
+});
+$("topic").addEventListener("input", () => { $("count").textContent = $("topic").value.length; });
+$("go").addEventListener("click", analyse);
+$("copy").addEventListener("click", copyResult);
+$("again").addEventListener("click", reset);
+renderPlaceholders();
+$("stripNote").textContent = NOTE_DEFAULT;
+</script>
+</body>
+  </html>
+  
